@@ -3,6 +3,39 @@ name: build
 on: [push, pull_request]
 
 jobs:
+  android:
+    name: Android
+    runs-on: ubuntu-latest
+    env:
+      GRADLE_USER_HOME: ${{ github.workspace }}/.gradle
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Ensure Gradle cache dir exists
+        run: mkdir -p ${{ github.workspace }}/.gradle
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - name: Build on Android
+        working-directory: android
+        run: |
+          ./gradlew assembleRelease
+          mv app/build/outputs/apk/release/app-release-unsigned.apk opposing-force.apk
+
+      - name: Upload Android artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hlsdk-${{ github.ref_name }}-android
+          path: android/opposing-force.apk
+
   build:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -172,7 +205,9 @@ jobs:
         uses: softprops/action-gh-release@v0.1.15
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          files: artifacts/hlsdk-*.zip
+          files: |
+            artifacts/hlsdk-*.zip
+            artifacts/opposing-force.apk
           tag_name: continuous-${{ github.ref_name }}
           draft: false
           prerelease: true
